@@ -1,5 +1,15 @@
 ## Spotify Pause
 
+Configure it
+
+```bash
+$ cp credentials.json.example credentials.json
+```
+
+changing credentials.json content with required tokens.
+
+___
+
 Build it
 
 ```bash
