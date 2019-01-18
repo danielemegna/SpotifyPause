@@ -3,21 +3,47 @@ const http    = require('http')
 const Router  = require('router')
 const fs      = require('fs');
 
-http.createServer(function(req, res) {
+http.createServer(function(request, response) {
+  if (request.url === '/favicon.ico') {
+    response.writeHead(200, {'Content-Type': 'image/x-icon'} );
+    response.end();
+    return;
+  }
 
-  launchPauseMusic()
+  refreshToken().then(function(token) {
+    pauseMusic(token)
+  })
 
-  res.statusCode = 200
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-  res.end('Done!')
-
+  response.statusCode = 200
+  response.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  response.end('Fatto!')
 }).listen(3000)
 
-function launchPauseMusic() {
-  refreshToken((error, response, body) => {
-    if (error) throw new Error(error);
-    const token = JSON.parse(body).access_token
-    pauseMusic(token)
+function refreshToken() {
+  return new Promise(function(resolve, reject) {
+    const credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf8'));
+    const refresh_request = {
+      method: 'POST',
+      url: 'https://accounts.spotify.com/api/token',
+      headers: {
+        'cache-control': 'no-cache',
+        Authorization: 'Basic ' + credentials.basic_auth_token,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      form: {
+        grant_type: 'refresh_token',
+        refresh_token: credentials.refresh_token
+      }
+    };
+
+    request(refresh_request, function(error, response, body) {
+      if (!error && response.statusCode == 200) {
+        resolve(JSON.parse(body).access_token)
+        return
+      }
+
+      reject(error)
+    }) 
   })
 }
 
@@ -32,24 +58,5 @@ function pauseMusic(token) {
   }
 
   request(pause_request)
-}
-
-function refreshToken(callback) {
-  const credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf8'));
-  const refresh_request = {
-    method: 'POST',
-    url: 'https://accounts.spotify.com/api/token',
-    headers: {
-      'cache-control': 'no-cache',
-      Authorization: 'Basic ' + credentials.basic_auth_token,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    form: {
-      grant_type: 'refresh_token',
-      refresh_token: credentials.refresh_token
-    }
-  };
-
-  request(refresh_request, callback);
 }
 
