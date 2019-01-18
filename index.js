@@ -1,6 +1,5 @@
 const request = require("request");
 const http    = require('http')
-const Router  = require('router')
 const fs      = require('fs');
 
 http.createServer(function(request, response) {
@@ -10,13 +9,17 @@ http.createServer(function(request, response) {
     return;
   }
 
+  response.setHeader('Content-Type', 'text/plain; charset=utf-8')
   refreshToken().then(function(token) {
-    pauseMusic(token)
+    pauseMusic(token).then(function(result) {
+      response.statusCode = 200
+      response.end('Fatto!')
+    }).catch(function(error) {
+      response.statusCode = error.status
+      response.end(error.message)
+    })
   })
 
-  response.statusCode = 200
-  response.setHeader('Content-Type', 'text/plain; charset=utf-8')
-  response.end('Fatto!')
 }).listen(3000)
 
 function refreshToken() {
@@ -42,21 +45,30 @@ function refreshToken() {
         return
       }
 
-      reject(error)
+      reject(JSON.parse(response.body).error)
     }) 
   })
 }
 
 function pauseMusic(token) {
-  const pause_request = {
-    method: 'PUT',
-    url: 'https://api.spotify.com/v1/me/player/pause',
-    headers: {
-      'cache-control': 'no-cache',
-       Authorization: 'Bearer ' + token
-     }
-  }
+  return new Promise(function(resolve, reject) {
+    const pause_request = {
+      method: 'PUT',
+      url: 'https://api.spotify.com/v1/me/player/pause',
+      headers: {
+        'cache-control': 'no-cache',
+         Authorization: 'Bearer ' + token
+       }
+    }
 
-  request(pause_request)
+    request(pause_request, function(error, response, body) {
+      if (!error && response.statusCode == 204) {
+        resolve(response)
+        return
+      }
+
+      reject(JSON.parse(response.body).error)
+    })
+  })
 }
 
